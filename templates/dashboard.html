@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analytics Dashboard - Waste Classifier</title>
+
+<!-- Google Font: Inter -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --bg-color: #0f1115;
+        --card-bg: #1a1d24;
+        --border-color: rgba(255, 255, 255, 0.08);
+        --primary: #10b981; /* Emerald 500 */
+        --text-main: #f3f4f6;
+        --text-muted: #9ca3af;
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        min-height: 100vh;
+        padding: 40px 20px;
+    }
+
+    .container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 20px;
+    }
+    .header h1 {
+        font-size: 2rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+    }
+    
+    .btn {
+        padding: 10px 16px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: rgba(255,255,255,0.05);
+        color: var(--text-main);
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: 0.2s;
+    }
+    .btn:hover {
+        background: rgba(255,255,255,0.1);
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 40px;
+    }
+    
+    .stat-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    .stat-title {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 600;
+        color: white;
+    }
+    .stat-value.highlight {
+        color: var(--primary);
+    }
+
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Analytics Dashboard</h1>
+        <a href="/" class="btn">← Back to Classifier</a>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-title">Total Predictions</div>
+            <div class="stat-value">{{ stats.total }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Model Accuracy</div>
+            <div class="stat-value highlight">{{ stats.accuracy }}%</div>
+            <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 5px;">Based on {{ stats.feedback_received }} user feedbacks</p>
+        </div>
+    </div>
+    
+    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+        <div class="stat-card">
+            <div class="stat-title" style="margin-bottom: 20px;">Category Breakdown</div>
+            
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <span style="color: #34d399; font-weight: 500;">Recyclable</span>
+                <span>{{ stats.recycle }}</span>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                <span style="color: #fbbf24; font-weight: 500;">Organic</span>
+                <span>{{ stats.organic }}</span>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between;">
+                <span style="color: #a78bfa; font-weight: 500;">Out-of-Distribution</span>
+                <span>{{ stats.non_waste }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

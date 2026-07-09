@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Flask uploads
+static/*.jpg
+static/*.jpeg
+static/*.png
+!static/.gitkeep
+
+# Database
+*.db
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Heavy Files
+Resources/Dataset/
+*.hdf5
+*.tflite
+*.zip
