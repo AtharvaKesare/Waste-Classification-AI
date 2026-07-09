@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 UPLOAD_FOLDER = 'static/'
 
 app = Flask(__name__)                    
-app.secret_key = '8662747133'
+# Use environment variable for secret key in production, fallback to default for local dev
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', '8662747133')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Ensure static folder exists
@@ -101,4 +102,5 @@ def dashboard():
 
 if __name__ == "__main__":
     logger.info("Starting Flask Server...")
-    app.run(debug=True)
+    # debug=False is best practice for production/public repos
+    app.run(debug=False)
