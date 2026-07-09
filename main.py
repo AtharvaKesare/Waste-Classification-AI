@@ -17,13 +17,24 @@ class WasteClassifierPipeline:
     def __init__(self):
         logger.info("Initializing Edge-Optimized WasteClassifierPipeline...")
         
-        # Load Stage 1: Face Detector
+        # Load Stage 1: Face Detectors (Ensemble)
+        self.cascades = []
+        cascade_files = [
+            'haarcascade_frontalface_alt2.xml',
+            'haarcascade_frontalface_default.xml',
+            'haarcascade_profileface.xml',
+            'haarcascade_upperbody.xml'
+        ]
         try:
-            logger.info("Loading Stage 1 Model (Haar Cascade)...")
-            self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
+            logger.info("Loading Stage 1 Ensemble...")
+            for xml in cascade_files:
+                path = cv2.data.haarcascades + xml
+                if os.path.exists(path):
+                    cascade = cv2.CascadeClassifier(path)
+                    if not cascade.empty():
+                        self.cascades.append(cascade)
         except Exception as e:
-            logger.error(f"Failed to load Stage 1 Model: {e}")
-            self.face_cascade = None
+            logger.error(f"Failed to load Stage 1 Ensemble: {e}")
 
         # Load Stage 2: Waste Classifier (ONNX)
         try:
@@ -44,17 +55,31 @@ class WasteClassifierPipeline:
             return "Error", "File not found", filename
 
         try:
-            # --- STAGE 1: Face Detection (OpenCV) ---
-            if self.face_cascade is not None:
-                logger.info("Running Stage 1: Face Detection...")
+            # --- STAGE 1: Face & Body Detection Ensemble ---
+            if len(self.cascades) > 0:
+                logger.info("Running Stage 1: Detection Ensemble...")
                 cv_img = cv2.imread(filepath)
                 if cv_img is not None:
+                    # Resize for better cascade performance
+                    h, w = cv_img.shape[:2]
+                    if w > 800:
+                        ratio = 800.0 / w
+                        cv_img = cv2.resize(cv_img, (800, int(h * ratio)))
+                    
                     gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
-                    # Use absolute minimum neighbors to catch any possible face
-                    faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=2, minSize=(30, 30))
-                    if len(faces) > 0:
-                        logger.warning("Rejected by Stage 1: Human Face Detected")
-                        return "Non-Waste", "Human Face", filename
+                    gray = cv2.equalizeHist(gray) # Huge boost to Haar Cascade accuracy
+                    
+                    face_detected = False
+                    for cascade in self.cascades:
+                        # Test each cascade in the ensemble
+                        matches = cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=3, minSize=(30, 30))
+                        if len(matches) > 0:
+                            face_detected = True
+                            break
+                            
+                    if face_detected:
+                        logger.warning("Rejected by Stage 1: Human Detected")
+                        return "Non-Waste", "Human/Face", filename
 
             # --- STAGE 2: Waste Classification ---
             if self.waste_model:
