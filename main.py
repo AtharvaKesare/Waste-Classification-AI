@@ -17,25 +17,6 @@ class WasteClassifierPipeline:
     def __init__(self):
         logger.info("Initializing Edge-Optimized WasteClassifierPipeline...")
         
-        # Load Stage 1: Face Detectors (Ensemble)
-        self.cascades = []
-        cascade_files = [
-            'haarcascade_frontalface_alt2.xml',
-            'haarcascade_frontalface_default.xml',
-            'haarcascade_profileface.xml',
-            'haarcascade_upperbody.xml'
-        ]
-        try:
-            logger.info("Loading Stage 1 Ensemble...")
-            for xml in cascade_files:
-                path = cv2.data.haarcascades + xml
-                if os.path.exists(path):
-                    cascade = cv2.CascadeClassifier(path)
-                    if not cascade.empty():
-                        self.cascades.append(cascade)
-        except Exception as e:
-            logger.error(f"Failed to load Stage 1 Ensemble: {e}")
-
         # Load Stage 2: Waste Classifier (ONNX)
         try:
             logger.info("Loading Stage 2 Model (Custom Waste Classifier via ONNX)...")
@@ -47,6 +28,54 @@ class WasteClassifierPipeline:
             
         logger.info("WasteClassifierPipeline initialized successfully.")
 
+    def _has_human_skin(self, filepath):
+        """
+        Detects human presence using HSV skin-tone color analysis.
+        Works regardless of angle, lighting, or number of faces.
+        Returns True if significant skin tone pixels are found.
+        """
+        try:
+            img = cv2.imread(filepath)
+            if img is None:
+                return False
+            
+            # Resize for speed
+            img = cv2.resize(img, (300, 300))
+            
+            # Convert to HSV for robust color matching
+            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            
+            # HSV range for human skin tones (covers all ethnicities)
+            lower_skin = np.array([0, 20, 70], dtype=np.uint8)
+            upper_skin = np.array([25, 255, 255], dtype=np.uint8)
+            
+            # Also catch slightly darker/redder skin tones
+            lower_skin2 = np.array([170, 20, 70], dtype=np.uint8)
+            upper_skin2 = np.array([180, 255, 255], dtype=np.uint8)
+            
+            mask1 = cv2.inRange(hsv, lower_skin, upper_skin)
+            mask2 = cv2.inRange(hsv, lower_skin2, upper_skin2)
+            mask = cv2.bitwise_or(mask1, mask2)
+            
+            # Apply morphological operations to remove noise
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+            mask = cv2.dilate(mask, kernel, iterations=2)
+            
+            # Calculate what % of the image is skin-tone
+            total_pixels = 300 * 300
+            skin_pixels = cv2.countNonZero(mask)
+            skin_ratio = skin_pixels / total_pixels
+            
+            logger.info(f"Stage 1: Skin ratio = {skin_ratio:.3f}")
+            
+            # If more than 8% of image is skin-tone, flag as human
+            return skin_ratio > 0.08
+            
+        except Exception as e:
+            logger.error(f"Stage 1 skin detection error: {e}")
+            return False
+
     def predict(self, filename):
         filepath = os.path.join('static', filename)
         
@@ -55,31 +84,11 @@ class WasteClassifierPipeline:
             return "Error", "File not found", filename
 
         try:
-            # --- STAGE 1: Face & Body Detection Ensemble ---
-            if len(self.cascades) > 0:
-                logger.info("Running Stage 1: Detection Ensemble...")
-                cv_img = cv2.imread(filepath)
-                if cv_img is not None:
-                    # Resize for better cascade performance
-                    h, w = cv_img.shape[:2]
-                    if w > 800:
-                        ratio = 800.0 / w
-                        cv_img = cv2.resize(cv_img, (800, int(h * ratio)))
-                    
-                    gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
-                    gray = cv2.equalizeHist(gray) # Huge boost to Haar Cascade accuracy
-                    
-                    face_detected = False
-                    for cascade in self.cascades:
-                        # Test each cascade in the ensemble
-                        matches = cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=3, minSize=(30, 30))
-                        if len(matches) > 0:
-                            face_detected = True
-                            break
-                            
-                    if face_detected:
-                        logger.warning("Rejected by Stage 1: Human Detected")
-                        return "Non-Waste", "Human/Face", filename
+            # --- STAGE 1: Skin-Tone Human Detection ---
+            logger.info("Running Stage 1: Skin-Tone Detection...")
+            if self._has_human_skin(filepath):
+                logger.warning("Rejected by Stage 1: Human/Skin Detected")
+                return "Non-Waste", "Human/Face", filename
 
             # --- STAGE 2: Waste Classification ---
             if self.waste_model:
