@@ -46,12 +46,14 @@ class WasteClassifierPipeline:
             hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
             
             # HSV range for human skin tones (covers all ethnicities)
+            # KEY: cap saturation at 150 to EXCLUDE vivid orange objects (carrots, fruit, etc.)
+            # Human skin is moderately saturated; carrots/oranges are highly saturated (S > 170)
             lower_skin = np.array([0, 20, 70], dtype=np.uint8)
-            upper_skin = np.array([25, 255, 255], dtype=np.uint8)
+            upper_skin = np.array([20, 150, 255], dtype=np.uint8)
             
-            # Also catch slightly darker/redder skin tones
+            # Catch slightly darker/redder skin tones (also capped at S=150)
             lower_skin2 = np.array([170, 20, 70], dtype=np.uint8)
-            upper_skin2 = np.array([180, 255, 255], dtype=np.uint8)
+            upper_skin2 = np.array([180, 150, 255], dtype=np.uint8)
             
             mask1 = cv2.inRange(hsv, lower_skin, upper_skin)
             mask2 = cv2.inRange(hsv, lower_skin2, upper_skin2)
@@ -69,8 +71,9 @@ class WasteClassifierPipeline:
             
             logger.info(f"Stage 1: Skin ratio = {skin_ratio:.3f}")
             
-            # If more than 8% of image is skin-tone, flag as human
-            return skin_ratio > 0.08
+            # If more than 18% of image is skin-tone, flag as human
+            # (high enough to avoid false positives from wood/food, low enough to catch selfies)
+            return skin_ratio > 0.18
             
         except Exception as e:
             logger.error(f"Stage 1 skin detection error: {e}")
