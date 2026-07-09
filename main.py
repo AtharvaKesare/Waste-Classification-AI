@@ -20,7 +20,7 @@ class WasteClassifierPipeline:
         # Load Stage 1: Face Detector
         try:
             logger.info("Loading Stage 1 Model (Haar Cascade)...")
-            self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+            self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
         except Exception as e:
             logger.error(f"Failed to load Stage 1 Model: {e}")
             self.face_cascade = None
@@ -50,7 +50,8 @@ class WasteClassifierPipeline:
                 cv_img = cv2.imread(filepath)
                 if cv_img is not None:
                     gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
-                    faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4, minSize=(30, 30))
+                    # Use absolute minimum neighbors to catch any possible face
+                    faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=2, minSize=(30, 30))
                     if len(faces) > 0:
                         logger.warning("Rejected by Stage 1: Human Face Detected")
                         return "Non-Waste", "Human Face", filename
